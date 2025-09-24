@@ -1,0 +1,85 @@
+#generate a dataset
+#Does a roundtrip check to make sure equation-->word problem-->equation is correct. 
+python algebra_dataset_generator.py --per_family 200 --use_llm --provider together --model deepseek-ai/DeepSeek-R1 --verify-mode robustOptimal --format json --out algebraTest/AGSM8K-V2.json --use-encyclopedia-topics --encyclopedia-file Encyclopedia70K_20250810_174254.json --jobs 15 --seed 41341
+
+#sieve the dataset for intractable problems
+python3 algebra_dataset_problem_siever.py --input datasets/AGSM8K-V2.json  --providers-file externalProvidersAndModelsV3.json --error-pct 0.5 --max-tokens 30000 --request-timeout 300 --jobs 10
+
+#generate composite problems
+python algebra_dataset_generator_deterministic_composite.py \
+    --input datasets/AGSM8K-V2_tractable_source_1049.json \
+    --output datasets/AGSM8K-V2.json \
+    --runs 8000 --seed 4561 --coeff-min 1 --coeff-max 10 \
+    --insert-random-facts --format json \
+    --generate-batch-of-scaled-difficulty \
+    --maximize-family-variety \
+    --avoid-repeat-subproblems
+
+#filter overly easy problems from the composite
+python3 algebra_dataset_problem_siever_easy_filter.py --base-name AGSM8K-V2 --providers-file externalProvidersAndModelsV3-easyFilter.json --max-items 3000 --error-pct 0.5 --max-tokens 31000 --request-timeout 360 --successThreshold 49 --stopAtNumItems 50 --max-workers 10
+
+#run the benchmark
+
+#regenerate graphs as needed (example)
+python3 -c 'from algebra_dataset_benchmarking_tool import finalize_run_outputs; finalize_run_outputs("algebraTest/benchmark_runs/general_runV6")'
+
+python3 - <<'PY'
+from algebra_dataset_benchmarking_tool import finalize_run_outputs
+finalize_run_outputs(
+      "algebraTest/benchmark_runs/general_run_test",
+      provider_renames={"ambient": "zai"},
+      sort_bars_desc=True,
+      do_consensus=True,
+      consensus_pct=0.5,          # cluster answers within 0.5% of each other
+      consensus_min_votes=2,      # require at least 2 agreeing answers
+      consensus_error_pct=0.5,    # regrade threshold vs consensus
+)
+PY
+
+
+python algebra_dataset_generator.py --per_family 200 --use_llm --provider openai --model gpt-5-mini --verify-mode robustOptimal --format json --out algebraTest/AGSM8K-V3.json --use-encyclopedia-topics --encyclopedia-file Encyclopedia70K_20250810_174254.json --jobs 10
+--seed 41341
+
+
+  python algebra_dataset_generator_deterministic_composite.py \
+    --input algebraTest/AGSM8K-V3.json \
+    --output algebraTest/AGSM8K-V3-prod.json \
+    --runs 50 --seed 4561 --coeff-min 1 --coeff-max 10 \
+    --insert-random-facts --format json \
+    --generate-batch-of-scaled-difficulty \
+    --maximize-family-variety \
+    --avoid-repeat-subproblems
+
+
+    #Regular charts (ground truth)
+python3 - <<'PY'
+from algebra_dataset_benchmarking_tool import finalize_run_outputs
+finalize_run_outputs(
+      "algebraTest/benchmark_runs/general_runV7",
+      sort_bars_desc=True,            # ensures left→right highest→lowest
+      provider_renames={"ambient": "zai"},
+      omit_run_name_in_titles=True,
+      show_grading_type_in_titles=True,
+      randomize_provider_line_colors=True    # enable randomness for per-provider line charts
+)
+PY
+
+
+python3 - <<'PY'
+from algebra_dataset_benchmarking_tool import finalize_run_outputs
+finalize_run_outputs(
+      "algebraTest/benchmark_runs/general_runV7",
+      sort_bars_desc=True,
+      provider_renames={"ambient": "zai"},
+      do_consensus=True,
+      # consensus knobs (optional)
+      consensus_pct=0.5,          # cluster answers within 0.5%
+      consensus_min_votes=2,      # require >=2 models in a cluster
+      consensus_error_pct=0.5,    # grading threshold vs consensus/ground truth
+      # fallback_mode defaults to 'ground_truth' (other option: 'exclude')
+      filtered_difficulties=[1, 10],
+      omit_run_name_in_titles=True,
+      show_grading_type_in_titles=True,
+      randomize_provider_line_colors=True    # enable randomness for per-provider line charts
+)
+PY
