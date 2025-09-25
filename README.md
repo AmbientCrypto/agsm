@@ -4,11 +4,11 @@ Contains the Ambient GSM, a dynamically generated algebra word problem benchmark
 
 ### AGSM (Ambient Grade School Math) Overview
 
-- Generation: `algebra_dataset_generator.py` and `algebra_dataset_generatorV2.py` programmatically build solvable equations with SymPy, realize them into word problems with an LLM, and verify by round‑trip parsing (story → equations → solution).
+- Generation: `algebra_dataset_generator.py` programmatically builds solvable equations with SymPy, realizes them into word problems with an LLM, and verifies by round‑trip parsing (story → equations → solution).
 - Difficulty: `algebra_dataset_generator_deterministic_composite.py` composes n verified leaf problems into a single multi‑step question whose final answer is a linear expression of the n sub‑answers. Level n ≡ n sub‑problems.
 - Sieve (two‑stage):
   - Stage 1 (tractable leaves): `algebra_dataset_problem_siever.py` keeps problems that at least one model solves (beyond round‑trip parsing).
-  - Stage 2 (easy‑filter): `algebra_dataset_problem_siever_easy_filter.py` culls problems a panel solves too easily; use `--successThreshold 50` with a weak panel to match the paper’s >50% criterion.
+  - Stage 2 (easy‑filter): `algebra_dataset_problem_siever_easy_filter.py` culls problems a panel solves too easily; use `--successThreshold 51` with a weak panel to match the paper’s >50% criterion.
 - Benchmark: `algebra_dataset_benchmarking_tool.py` runs the standardized AGSM harness: strict JSON `{"final_answer": ...}` with tolerant parsing fallbacks, percent‑error grading, per‑difficulty graphs, consensus regrade, and “expected vs actual” reference lines (naïve d=1 and WLS‑fit p^d).
 - Narrative perturbations: when topic diversification is enabled, a short `random_fact` can be inserted before/after sub‑problems. This is semantics‑independent and does not change variables/constants.
 
